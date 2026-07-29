@@ -1,17 +1,22 @@
 from qiskit import QuantumCircuit, QuantumRegister, ClassicalRegister
+from qiskit_aer import AerSimulator
 
+#implemented
 c1 = QuantumRegister(4, 'c1')
 c2 = QuantumRegister(4, 'c2')
 c3 = QuantumRegister(4, 'c3')
 
+#implemented
 s1 = QuantumRegister(4, 's1')
 s2 = QuantumRegister(4, 's2')
 s3 = QuantumRegister(4, 's3')
+
 
 h1 = QuantumRegister(4, 'h1')
 h2 = QuantumRegister(4, 'h2')
 h3 = QuantumRegister(4, 'h3')
 
+#implemented
 i1 = ClassicalRegister(4, 'i1')
 i2 = ClassicalRegister(4, 'i2')
 i3 = ClassicalRegister(4, 'i3')
@@ -20,10 +25,12 @@ dump = QuantumRegister(4,'dump') #implemented
 check = ClassicalRegister(4, 'check') #implemented
 bus = QuantumRegister(4, 'b') #implemented
 
-qc = QuantumCircuit(c1,c2,c3,s1,s2,s3,h1,h2,h3,i1,i2,i3,bus,dump,check)
+qc = QuantumCircuit(c1,c2,c3,s1,s2,s3,i1,i2,i3,h1,h2,h3,bus,dump,check)
 
 busqueue = []
 dumpqueue = []
+
+# reset
 
 def reset(qubit, out):
     qc.measure(qubit, out)
@@ -33,6 +40,8 @@ def reset(qubit, out):
 def reg_reset(reg):
     for i in range(4):
         reset(reg[i], check[i])
+
+# bus
 
 def bus_swap(reg):
     for i in range(4):
@@ -47,20 +56,100 @@ def add_busqueue(regA, regB):
     busqueue.append([regA, regB])
 
 def perform_busqueue():
-    item = busqueue[0]
-    regA = item[0]
-    regB = item[1]
+    if len(busqueue) > 0:
+        item = busqueue[0]
+        regA = item[0]
+        regB = item[1]
 
-    transfer(regA, regB)
-    busqueue.pop(0)
+        transfer(regA, regB)
+        busqueue.pop(0)
+
+# dump
 
 def add_dumpqueue(reg):
     dumpqueue.append(reg)
 
 def perform_dumpqueue():
-    reg = dumpqueue[0]
+    if len(dumpqueue) > 0:
+        reg = dumpqueue[0]
+        print(reg)
+        transfer(reg, dump)
+        reg_reset(dump)
+        
+        dumpqueue.pop(0)
 
-    transfer(reg, dumpqueue)
-    dumpqueue.pop(0)
+#i1-i3
+def output_reg(c_reg, i_reg):
+    for i in range(4):
+        qc.measure(c_reg[i], i_reg[i])
+
+def get_output(i_reg):
+    info = []
+    for i in range(4):
+        info.append(i_reg[i])
+    return info
+
+#h1-h3
+def fan_out(regA, regB, helper):
+    for i in range(4):
+        qc.cx(regA[i], helper[i])
+    add_busqueue(helper, regB)
+
+def clock_tick():
+    perform_busqueue()
+    perform_dumpqueue()
 
 
+# 1. PREPARE AN INITIAL STATE
+# Let's put a state on Storage Register 1 (s1): s1 = |0011>
+# -------------------------------------------------------------
+qc.x(s1[0])
+qc.x(s1[1])
+
+# -------------------------------------------------------------
+# 2. RUN A FULL QPU ARCHITECTURE CYCLE
+# -------------------------------------------------------------
+
+# Step A: Queue transfer from Storage (s1) to Compute (c1)
+add_busqueue(s1, c1)
+
+# Step B: Fire Clock Pulse (executes transfer & resets bus)
+clock_tick()
+
+# Step C: Apply Compute operations directly on c1
+qc.cx(c1[0], c1[2])  # C1 internal gate operation
+
+# Step D: Fan-out state from c1 into Helper (h1)
+fan_out(c1, s1, h1)
+
+# Step E: Queue h1 for Garbage Dumping
+add_dumpqueue(h1)
+
+# Step F: Fire Clock Pulse (executes transfer to dump & flushes d)
+clock_tick()
+
+# Step G: Retrieve output from c1 into Information Retriever (i1)
+output_reg(c1, i1)
+
+# -------------------------------------------------------------
+# 3. RUN THE SIMULATOR (AerSimulator)
+# -------------------------------------------------------------
+
+# Option A: Standard Statevector Simulator
+simulator = AerSimulator()
+
+# Option B: Matrix Product State (MPS) Simulator (To test your chi = 16 bond dimension!)
+# simulator = AerSimulator(method='matrix_product_state')
+
+# Execute the circuit for 1,000 shots
+job = simulator.run(qc, shots=1000)
+result = job.result()
+
+# Get the measurement counts from i1
+counts = result.get_counts(qc)
+
+print("=" * 50)
+print("QPU SIMULATION COMPLETE!")
+print("Information Retriever (i1) Output Counts:")
+print(counts)
+print("=" * 50)
