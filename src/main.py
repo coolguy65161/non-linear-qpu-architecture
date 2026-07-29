@@ -16,17 +16,51 @@ i1 = ClassicalRegister(4, 'i1')
 i2 = ClassicalRegister(4, 'i2')
 i3 = ClassicalRegister(4, 'i3')
 
-cldump = ClassicalRegister(4, 'cldump')
-qdump = QuantumRegister(4,'qdump')
+dump = QuantumRegister(4,'dump') #implemented
+check = ClassicalRegister(4, 'check') #implemented
+bus = QuantumRegister(4, 'b') #implemented
 
-bus = QuantumRegister(4, 'b')
+qc = QuantumCircuit(c1,c2,c3,s1,s2,s3,h1,h2,h3,i1,i2,i3,bus,dump,check)
 
-qc = QuantumCircuit(c1,c2,c3,s1,s2,s3,h1,h2,h3,i1,i2,i3,bus,cldump,qdump)
+busqueue = []
+dumpqueue = []
 
-def bus_in(register):
+def reset(qubit, out):
+    qc.measure(qubit, out)
+    with qc.if_test((out, 1)):
+        qc.x(qubit)
+
+def reg_reset(reg):
     for i in range(4):
-        qc.swap(register[i], bus[i])
+        reset(reg[i], check[i])
 
-def bus_out(register):
+def bus_swap(reg):
     for i in range(4):
-        qc.swap(register[i], bus[i])
+        qc.swap(reg[i], bus[i])
+
+def transfer(regA, regB):
+    bus_swap(regA)
+    bus_swap(regB)
+    reg_reset(bus)
+
+def add_busqueue(regA, regB):
+    busqueue.append([regA, regB])
+
+def perform_busqueue():
+    item = busqueue[0]
+    regA = item[0]
+    regB = item[1]
+
+    transfer(regA, regB)
+    busqueue.pop(0)
+
+def add_dumpqueue(reg):
+    dumpqueue.append(reg)
+
+def perform_dumpqueue():
+    reg = dumpqueue[0]
+
+    transfer(reg, dumpqueue)
+    dumpqueue.pop(0)
+
+
