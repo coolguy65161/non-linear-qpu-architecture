@@ -100,52 +100,28 @@ def clock_tick():
     perform_dumpqueue()
 
 
-# 1. PREPARE AN INITIAL STATE
-# Let's put a state on Storage Register 1 (s1): s1 = |0011>
-# -------------------------------------------------------------
 qc.x(s1[0])
 qc.x(s1[1])
 
-# -------------------------------------------------------------
-# 2. RUN A FULL QPU ARCHITECTURE CYCLE
-# -------------------------------------------------------------
-
-# Step A: Queue transfer from Storage (s1) to Compute (c1)
 add_busqueue(s1, c1)
 
-# Step B: Fire Clock Pulse (executes transfer & resets bus)
 clock_tick()
 
-# Step C: Apply Compute operations directly on c1
-qc.cx(c1[0], c1[2])  # C1 internal gate operation
+qc.cx(c1[0], c1[2])  
 
-# Step D: Fan-out state from c1 into Helper (h1)
 fan_out(c1, s1, h1)
 
-# Step E: Queue h1 for Garbage Dumping
 add_dumpqueue(h1)
 
-# Step F: Fire Clock Pulse (executes transfer to dump & flushes d)
 clock_tick()
 
-# Step G: Retrieve output from c1 into Information Retriever (i1)
 output_reg(c1, i1)
 
-# -------------------------------------------------------------
-# 3. RUN THE SIMULATOR (AerSimulator)
-# -------------------------------------------------------------
-
-# Option A: Standard Statevector Simulator
 simulator = AerSimulator()
 
-# Option B: Matrix Product State (MPS) Simulator (To test your chi = 16 bond dimension!)
-# simulator = AerSimulator(method='matrix_product_state')
-
-# Execute the circuit for 1,000 shots
 job = simulator.run(qc, shots=1000)
 result = job.result()
 
-# Get the measurement counts from i1
 counts = result.get_counts(qc)
 
 print("=" * 50)
