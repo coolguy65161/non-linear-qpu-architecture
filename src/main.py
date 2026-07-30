@@ -45,6 +45,7 @@ def reg_reset(reg):
 
 def bus_swap(reg):
     for i in range(4):
+
         qc.swap(reg[i], bus[i])
 
 def transfer(regA, regB):
@@ -90,7 +91,9 @@ def get_output(i_reg):
     return info
 
 #h1-h3
-def fan_out(regA, regB, helper):
+
+#not in any form of superposition only
+def nsp_fan_out(regA, regB, helper):
     for i in range(4):
         qc.cx(regA[i], helper[i])
     add_busqueue(helper, regB)
@@ -107,9 +110,9 @@ add_busqueue(s1, c1)
 
 clock_tick()
 
-qc.cx(c1[0], c1[2])  
+qc.cx(c1[0], c1[2]) 
 
-fan_out(c1, s1, h1)
+nsp_fan_out(c1, s1, h1)
 
 add_dumpqueue(h1)
 
